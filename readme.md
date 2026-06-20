@@ -1,8 +1,8 @@
-# BioModelle Client
+# Biomodels Client
 
-Python tools for importing wearable sensor data and interacting with the BioModelle API.
+Python tools for importing wearable sensor data and interacting with the Biomodels API.
 
-The package provides utilities for importing, querying and analysing sensor data, preparing API endpoint payloads, 
+The package provides utilities for importing, querying and analysing sensor data, preparing API payloads, 
 and submitting requests to the BioModelle API.
 
 https://biomodels.tkimhofer.dev/docs
@@ -10,9 +10,8 @@ https://biomodels.tkimhofer.dev/docs
 
 ### Features
 * Import Apple Health exports (`"export.xml"` or `.zip`)
-* Store measurements in a local SQLite database
 * Query and explore sensor data using pandas and SQL
-* Prepare endpoint payloads directly from sensor measurements
+* Prepare API payloads directly from sensor measurements
 * Submit requests to the BioModelle API
 
 ### Installation

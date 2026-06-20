@@ -1,4 +1,4 @@
-import json, zipfile
+import hashlib, json, zipfile
 import xml.etree.ElementTree as ET
 from decimal import Decimal
 from uuid import uuid4
@@ -140,7 +140,7 @@ class AppleHealthImporter:
             target_ucum,
         )
 
-        return {
+        row = {
             "source": "apple_health",
             "source_file": str(self.xml_path),
 
@@ -162,8 +162,12 @@ class AppleHealthImporter:
             "workout_id": None,
         }
 
+        row["record_hash"] = self._record_hash(row)
+        return row
+
     def write_to(self, store):
-        n = 0
+        n_seen = 0
+        n_inserted = 0
 
         for rec in self.records():
             row = self.measurement(rec)
@@ -171,13 +175,20 @@ class AppleHealthImporter:
             if row is None:
                 continue
 
+            n_seen += 1
+            before = store.con.total_changes
             store.insert(row)
-            n += 1
+            after = store.con.total_changes
+
+            if after > before:
+                n_inserted += 1
 
         store.commit()
 
         return {
-            "records_written": n,
+            "records_seen": n_seen,
+            "records_inserted": n_inserted,
+            "records_skipped": n_seen - n_inserted,
             "database": str(store.path),
         }
 
@@ -187,3 +198,18 @@ class AppleHealthImporter:
                 obs = self.observation(rec, patient_ref=patient_ref)
                 if obs:
                     out.write(json.dumps(obs, ensure_ascii=False) + "\n")
+
+    def _record_hash(self, row: dict) -> str:
+        key = {
+            "source": row.get("source"),
+            "hk_type": row.get("hk_type"),
+            "value": row.get("value"),
+            "unit": row.get("unit"),
+            "time_start": row.get("time_start"),
+            "time_end": row.get("time_end"),
+            "source_name": row.get("source_name"),
+            "device": row.get("device"),
+        }
+
+        raw = json.dumps(key, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()

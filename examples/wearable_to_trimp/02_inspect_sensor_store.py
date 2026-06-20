@@ -9,7 +9,7 @@ dt_end = "2026-06-17 10:00"
 # read sqlite
 db = SensorStore(db_file)
 
-# wearable/source with most HR values in time range
+# wearable-source with most HR values in time range
 db.select_best_heart_rate_source(
     start=dt_start,
     end=dt_end,

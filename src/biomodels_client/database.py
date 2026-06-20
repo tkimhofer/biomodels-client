@@ -21,6 +21,8 @@ class SensorStore:
         self.con.execute("""
         CREATE TABLE IF NOT EXISTS measurements (
             id INTEGER PRIMARY KEY,
+            
+            record_hash TEXT UNIQUE,
 
             source TEXT,
             source_file TEXT,
@@ -73,7 +75,8 @@ class SensorStore:
         device = self._clean_text(record.get("device"))
 
         self.con.execute("""
-        INSERT INTO measurements (
+        INSERT OR IGNORE INTO measurements (
+            record_hash,
             source,
             source_file,
             provider,
@@ -89,8 +92,9 @@ class SensorStore:
             time_end,
             workout_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
+            record.get("record_hash"),
             record.get("source"),
             record.get("source_file"),
             record.get("provider"),
@@ -120,6 +124,21 @@ class SensorStore:
         start: Optional[str] = None,
         end: Optional[str] = None,
     ) -> pd.DataFrame:
+        """
+        Retrieve measurements of a specified type.
+
+        Parameters
+        ----------
+        measurement_type : str
+            Measurement type (e.g. "heart_rate", "body_mass", "oxygen_saturation").
+        start, end : str, optional
+            Start and end datetime filters in format "YYYY-MM-DD HH:MM".
+
+        Returns
+        -------
+        pd.DataFrame
+            Measurements ordered by time.
+        """
 
         sql = """
         SELECT *
@@ -150,7 +169,17 @@ class SensorStore:
             self,
             start: str,
             end: str,
-    ) -> tuple[str, str]:
+    ) -> dict[str, any]:
+        """
+        Return the heart-rate source and device contributing the
+        largest number of measurements in a specified time range.
+
+        Parameters
+        ----------
+        start, end : str, optional
+            Start and end datetime filters in format "YYYY-MM-DD HH:MM".
+        """
+
         sql = """
         SELECT
             COALESCE(source_name, '') AS source_name,
@@ -185,6 +214,23 @@ class SensorStore:
             source_name: Optional[str] = None,
             device: Optional[str] = None,
     ) -> pd.DataFrame:
+        """
+        Retrieve heart-rate measurements.
+
+        Parameters
+        ----------
+        start, end : str, optional
+            Inclusive datetime filters (e.g. "2026-06-17 08:00").
+        source_name : str, optional
+            Restrict results to a specific source.
+        device : str, optional
+            Restrict results to a specific device.
+
+        Returns
+        -------
+        pd.DataFrame
+            Heart-rate measurements ordered by time.
+        """
 
         sql = """
         SELECT *
@@ -229,30 +275,70 @@ class SensorStore:
             self,
             start: str,
             end: str,
+            max_gap_s: float = 10 * 60,
     ) -> dict:
 
+        """
+            Prepare a TRIMP endpoint payload from heart-rate measurements.
+
+            Heart-rate records are selected from the source/device with the
+            highest number of observations within the requested time range.
+            Measurements are ordered chronologically and converted into
+            heart-rate/time interval pairs suitable for submission to the
+            BioModelle TRIMP endpoint.
+
+            Intervals larger than `max_gap_s` are discarded to avoid assigning
+            excessive duration to isolated measurements separated by long
+            recording gaps.
+
+            Parameters
+            ----------
+            start : str
+                Start datetime.
+            end : str
+                End datetime.
+            max_gap_s : float, default=600
+                Maximum allowed interval between consecutive measurements [s].
+
+            Returns
+            -------
+            dict
+                Dictionary containing:
+
+                - hr_bpm : list[float]
+                    Heart-rate values [bpm].
+                - zeit_s : list[float]
+                    Corresponding interval durations [s].
+
+            Raises
+            ------
+            ValueError
+                If insufficient measurements are available or no valid
+                intervals remain after filtering.
+            """
 
         hr_source = self.select_best_heart_rate_source(
             start=start,
             end=end,
         )
-        # row["source_name"], row["device"], row["n"]
-        # source_name, device = self.select_best_heart_rate_source(
-        #     start=start,
-        #     end=end,
-        # )
 
         df = self.select_heart_rate(
             start=start,
             end=end,
-            source_name=hr_source['source_name'],
-            device=hr_source['device'],
+            source_name=hr_source["source_name"],
+            device=hr_source["device"],
         )
 
         if len(df) < 2:
             raise ValueError("At least two heart-rate measurements required.")
 
-        df["dauer_s"] = (
+        df = df.copy()
+        df["time_start"] = pd.to_datetime(df["time_start"], utc=True, errors="coerce")
+        df = df.dropna(subset=["time_start", "value"])
+
+        df = df.sort_values("time_start").reset_index(drop=True)
+
+        df["zeit_s"] = (
             df["time_start"]
             .shift(-1)
             .sub(df["time_start"])
@@ -260,10 +346,17 @@ class SensorStore:
         )
 
         df = df.iloc[:-1]
+        df = df[
+            (df["zeit_s"] > 0)
+            & (df["zeit_s"] <= max_gap_s)
+            ]
+
+        if len(df) == 0:
+            raise ValueError("No valid positive time intervals found.")
 
         return {
-            "hr_bpm": df["value"].tolist(),
-            "zeit_s": df["dauer_s"].tolist()
+            "hr_bpm": df["value"].astype(float).tolist(),
+            "zeit_s": df["zeit_s"].astype(float).tolist(),
         }
 
     def query(self, sql: str, params=None) -> pd.DataFrame:

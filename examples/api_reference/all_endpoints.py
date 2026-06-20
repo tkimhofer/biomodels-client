@@ -1,4 +1,4 @@
-import json, pprint
+from pprint import pprint
 
 from biomodels_client.client import BioModelleClient
 from biomodels_client.fixtures import P1, TRIMP_EXAMPLE, CRITICAL_SPEED_EXAMPLE
