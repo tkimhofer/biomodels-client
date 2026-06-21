@@ -126,7 +126,7 @@ db.estimate_hr_max(...)
 db.trimp_payload(...)
 
 db.query(...)
-de.execute(...)
+db.execute(...)
 ```
 
 for exploration and preparation of wearable sensor data.
