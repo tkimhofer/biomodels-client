@@ -1,17 +1,43 @@
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.8.0,<0.9.0"]
+build-backend = "uv_build"
 
 [project]
 name = "biomodels-client"
 version = "0.1.0"
 description = "Python client and import tools for the BioModelle API"
+readme = "readme.md"
 requires-python = ">=3.9"
+
+authors = [
+  {name = "Torben Kimhofer"}
+]
+
+license = { text = "GPL-3.0-or-later" }
+
+keywords = [
+  "wearables",
+  "apple-health",
+  "digital-health",
+  "fhir",
+  "loinc",
+  "physiology",
+  "sports-science",
+  "health-data",
+  "api"
+]
+
 dependencies = [
     "requests",
     "numpy",
-    "pandas"
+    "pandas",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.urls]
+Homepage = "https://biomodels.tkimhofer.dev"
+Documentation = "https://biomodels.tkimhofer.dev/docs"
+Repository = "https://github.com/tkimhofer/biomodels-client"
+
+[tool.uv.build-backend]
+module-root = "src"
+module-name = "biomodels_client"
