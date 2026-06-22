@@ -5,7 +5,7 @@ Python tools for importing wearable sensor data and interacting with the Biomode
 The package provides utilities for importing, querying and analysing sensor data, preparing API payloads, 
 and submitting requests to the BioModelle API.
 
-https://biomodels.tkimhofer.dev/docs
+https://biomodels.tkimhofer.dev/swagger
 
 
 ### Features
