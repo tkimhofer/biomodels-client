@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "biomodels-client"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python client and import tools for the BioModelle API"
 readme = "readme.md"
 requires-python = ">=3.9"
